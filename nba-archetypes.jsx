@@ -1359,7 +1359,7 @@ function analyzeLineup(players) {
   if (!hasFinisher) {
     flags.push({ type: "warning", title: "No rim finisher", detail: "No Roll Man or Cut & Finish, and no other player getting to the restricted area at real volume." });
   } else if (!hasFinisherRole && topRimVolume) {
-    flags.push({ type: "warning", title: "Rim pressure from a non-traditional role", detail: `No Roll Man or Cut & Finish, but ${topRimVolume.name} (${topRimVolume.offensiveRole}) gets to the rim on ${Math.round(topRimVolume.szOff.RA.freq*100)}% of shots. Provides real rim pressure without being classified as a finisher.` });
+    flags.push({ type: "warning", title: "Rim pressure from a non-traditional role", detail: `No Roll Man or Cut & Finish, but ${topRimVolume.name} (${topRimVolume.offensiveRole}) gets to the rim on ${Math.round(topRimVolume.szOff.RA.freq*100)}% of shots.` });
   }
   if (!hasPerimDef) {
     flags.push({ type: "error", title: "No perimeter stopper", detail: "No Point of Attack, Wing Stopper, or Chaser defender. Opposing ball handlers and shooters will have freedom." });
