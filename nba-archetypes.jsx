@@ -168,7 +168,7 @@ const OFFENSIVE_ROLES = {
   "Post Scorer": {
     color: "#b45309", bg: "#fef9c3", tier: "Big",
     offense: { Postup: 0.30, PRRollman: 0.14, Cut: 0.12, OffRebound: 0.12, Transition: 0.10, Spotup: 0.06 },
-    description: "Post up dominates everything. Gets bulk of offense from the block.",
+    description: "Post up dominates everything. Does real damage from both the block and the high post, mixing back-to-basket scoring in the paint with face-up and elbow touches higher up the floor.",
     examples: ["Nikola Jokić", "Alperen Sengun", "Joel Embiid"]
   },
   "Stretch Big": {
@@ -1331,12 +1331,16 @@ function analyzeLineup(players) {
   const hasPerimDef = defRoles.has("Point of Attack") || defRoles.has("Wing Man") || defRoles.has("Chaser");
   const hasPaintDef = defRoles.has("Anchor Big") || defRoles.has("Mobile Big");
   const hasShooter = offRoles.has("Movement Shooter") || offRoles.has("Stationary Shooter") || offRoles.has("Screen Runner");
-  // A Roll Man or Cut & Finish is the traditional way a lineup gets rim pressure, but a
-  // Heavy Usage Iso player who gets to the rim at real volume (>60% of their shots) is
-  // generating that same pressure through drives rather than rolling or cutting. Count it.
-  const rimPressureIso = players.find(p => p.offensiveRole === "Heavy Usage Iso" && (p.szOff?.RA?.freq ?? 0) > 0.60);
+  // A Roll Man or Cut & Finish is the traditional way a lineup gets rim pressure, but any
+  // player getting to the restricted area at real volume (35%+ of their shots) is providing
+  // that same value, regardless of what offensive role they're classified as. Slashers,
+  // Versatile Bigs, and Post Scorers all show up here in practice, not just traditional finishers.
   const hasFinisherRole = offRoles.has("Roll Man") || offRoles.has("Cut & Finish");
-  const hasFinisher = hasFinisherRole || !!rimPressureIso;
+  const rimVolumePlayers = players
+    .filter(p => !["Roll Man", "Cut & Finish"].includes(p.offensiveRole) && (p.szOff?.RA?.freq ?? 0) >= 0.35)
+    .sort((a, b) => (b.szOff.RA.freq) - (a.szOff.RA.freq));
+  const topRimVolume = rimVolumePlayers[0];
+  const hasFinisher = hasFinisherRole || rimVolumePlayers.length > 0;
   const shotCreatorCount = (offenseCounts["Heavy Usage Iso"] || 0);
   const ballHandlerCount = (offenseCounts["Offensive Engine"] || 0) + (offenseCounts["Secondary Ball Handler"] || 0);
 
@@ -1353,9 +1357,9 @@ function analyzeLineup(players) {
     flags.push({ type: "error", title: "No floor spacer", detail: "No Movement Shooter, Stationary Shooter, or Screen Runner. Defense can pack the paint without consequence." });
   }
   if (!hasFinisher) {
-    flags.push({ type: "warning", title: "No rim finisher", detail: "No Roll Man or Cut & Finish, and no Heavy Usage Iso player getting to the rim at real volume. Missing rim gravity and lob threat." });
-  } else if (!hasFinisherRole && rimPressureIso) {
-    flags.push({ type: "warning", title: "Rim pressure from iso scoring", detail: `No traditional finisher, but ${rimPressureIso.name} gets to the rim on ${Math.round(rimPressureIso.szOff.RA.freq*100)}% of shots. Provides real rim pressure through drives rather than rolling or cutting.` });
+    flags.push({ type: "warning", title: "No rim finisher", detail: "No Roll Man or Cut & Finish, and no other player getting to the restricted area at real volume." });
+  } else if (!hasFinisherRole && topRimVolume) {
+    flags.push({ type: "warning", title: "Rim pressure from a non-traditional role", detail: `No Roll Man or Cut & Finish, but ${topRimVolume.name} (${topRimVolume.offensiveRole}) gets to the rim on ${Math.round(topRimVolume.szOff.RA.freq*100)}% of shots. Provides real rim pressure without being classified as a finisher.` });
   }
   if (!hasPerimDef) {
     flags.push({ type: "error", title: "No perimeter stopper", detail: "No Point of Attack, Wing Stopper, or Chaser defender. Opposing ball handlers and shooters will have freedom." });
@@ -2043,35 +2047,35 @@ function PublicLineupTab() {
 
       {analysis && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 18 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 14 }}>Role Balance</div>
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Offense</div>
-              {Object.entries(analysis.offenseCounts).sort(([,a],[,b])=>b-a).map(([role, count]) => (
-                <div key={role} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                  <div style={{ flex: 1 }}><RoleChip name={role} type="off" small /></div>
-                  <div style={{ display: "flex", gap: 3 }}>
-                    {Array.from({length: count}).map((_,i) => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: OFFENSIVE_ROLES[role]?.color||"#ccc" }} />)}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#6b7280", width: 16 }}>{count}</div>
-                </div>
-              ))}
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Defense</div>
-              {Object.entries(analysis.defenseCounts).sort(([,a],[,b])=>b-a).map(([role, count]) => (
-                <div key={role} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                  <div style={{ flex: 1 }}><RoleChip name={role} type="def" small /></div>
-                  <div style={{ display: "flex", gap: 3 }}>
-                    {Array.from({length: count}).map((_,i) => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: DEFENSIVE_ROLES[role]?.color||"#ccc" }} />)}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#6b7280", width: 16 }}>{count}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 14 }}>Role Balance</div>
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Offense</div>
+                {Object.entries(analysis.offenseCounts).sort(([,a],[,b])=>b-a).map(([role, count]) => (
+                  <div key={role} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                    <div style={{ flex: 1 }}><RoleChip name={role} type="off" small /></div>
+                    <div style={{ display: "flex", gap: 3 }}>
+                      {Array.from({length: count}).map((_,i) => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: OFFENSIVE_ROLES[role]?.color||"#ccc" }} />)}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280", width: 16 }}>{count}</div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Defense</div>
+                {Object.entries(analysis.defenseCounts).sort(([,a],[,b])=>b-a).map(([role, count]) => (
+                  <div key={role} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                    <div style={{ flex: 1 }}><RoleChip name={role} type="def" small /></div>
+                    <div style={{ display: "flex", gap: 3 }}>
+                      {Array.from({length: count}).map((_,i) => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: DEFENSIVE_ROLES[role]?.color||"#ccc" }} />)}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280", width: 16 }}>{count}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 18 }}>
               <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Construction Analysis</div>
               {analysis.flags.length === 0 ? (
@@ -2089,8 +2093,9 @@ function PublicLineupTab() {
                 </div>
               ))}
             </div>
+          </div>
 
-
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {filledPlayers.some(p => Object.keys(p.szOff||{}).length > 0) && (
               <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 18, marginBottom: 12 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Aggregate Shot Zones</div>
@@ -2148,15 +2153,6 @@ function PublicLineupTab() {
                 })}
               </div>
             </div>
-
-            {/* Aggregate shot zones */}
-            {filledPlayers.some(p => Object.keys(p.szOff||{}).length > 0) && (
-              <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 18 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Aggregate Shot Distribution</div>
-                <ShotZoneChart offZones={aggShotZones(filledPlayers, "off")} />
-              </div>
-            )}
-            <DefensiveZoneTable defZones={aggShotZones(filledPlayers, "def")} title="Lineup Shot Defense" />
           </div>
         </div>
       )}
