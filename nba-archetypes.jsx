@@ -126,13 +126,13 @@ const OFFENSIVE_ROLES = {
   "Heavy Usage Iso": {
     color: "#7c3aed", bg: "#f3e8ff", tier: "Guard/Wing",
     offense: { Isolation: 0.25, PRBallHandler: 0.20, Transition: 0.15, Handoff: 0.08, Spotup: 0.08, Postup: 0.05 },
-    description: "Creates their own shot at elite volume through isolation. The defining trait is self-creation off the dribble: no screen or play call required to generate a look. In certain cases, particularly for players who also initiate offense through the P&R at real volume, this role can overlap with Offensive Engine.",
+    description: "The primary creator on offense, generating shots almost entirely through self-creation at elite isolation volume. No screen or play call required to get a look off the dribble. In certain cases, particularly for players who also initiate offense through the P&R at real volume, this role can overlap with Offensive Engine.",
     examples: ["Anthony Edwards", "Zion Williamson", "Kevin Durant"]
   },
   "Slasher": {
     color: "#dc2626", bg: "#fee2e2", tier: "Guard/Wing",
     offense: { Transition: 0.25, Cut: 0.18, Isolation: 0.15, PRBallHandler: 0.10, Spotup: 0.08, OffScreen: 0.02 },
-    description: "Gets to the rim through drives and transition. High drive and transition frequency generates rim gravity that collapses the defense and creates kick-out opportunities for shooters, even when the Slasher isn't scoring directly. A Slasher with even modest shooting ability becomes significantly harder to contain.",
+    description: "Applies constant pressure on the rim through drives and transition. That pressure alone collapses the defense and creates kick-out opportunities for shooters, even when the Slasher isn't scoring directly. A Slasher with even modest shooting ability becomes significantly harder to contain.",
     examples: ["Giannis Antetokounmpo", "Dyson Daniels", "Ausar Thompson"]
   },
   "Cut & Finish": {
@@ -1331,24 +1331,31 @@ function analyzeLineup(players) {
   const hasPerimDef = defRoles.has("Point of Attack") || defRoles.has("Wing Man") || defRoles.has("Chaser");
   const hasPaintDef = defRoles.has("Anchor Big") || defRoles.has("Mobile Big");
   const hasShooter = offRoles.has("Movement Shooter") || offRoles.has("Stationary Shooter") || offRoles.has("Screen Runner");
-  const hasFinisher = offRoles.has("Roll Man") || offRoles.has("Cut & Finish");
+  // A Roll Man or Cut & Finish is the traditional way a lineup gets rim pressure, but a
+  // Heavy Usage Iso player who gets to the rim at real volume (>60% of their shots) is
+  // generating that same pressure through drives rather than rolling or cutting. Count it.
+  const rimPressureIso = players.find(p => p.offensiveRole === "Heavy Usage Iso" && (p.szOff?.RA?.freq ?? 0) > 0.60);
+  const hasFinisherRole = offRoles.has("Roll Man") || offRoles.has("Cut & Finish");
+  const hasFinisher = hasFinisherRole || !!rimPressureIso;
   const shotCreatorCount = (offenseCounts["Heavy Usage Iso"] || 0);
   const ballHandlerCount = (offenseCounts["Offensive Engine"] || 0) + (offenseCounts["Secondary Ball Handler"] || 0);
 
   if (!hasInitiator && shotCreatorCount === 0) {
-    flags.push({ type: "error", title: "No offense initiator", detail: "Lineup has no Primary Ball Handler, Secondary Ball Handler, or Shot Creator. Who runs the offense?" });
+    flags.push({ type: "error", title: "No offense initiator", detail: "Lineup has no Offensive Engine, Secondary Ball Handler, or Heavy Usage Iso. Who runs the offense?" });
   }
   if (shotCreatorCount >= 3) {
-    flags.push({ type: "warning", title: "Shot creator heavy", detail: `${shotCreatorCount} Shot Creators in the lineup. Risk of ball stopping and reduced spacing.` });
+    flags.push({ type: "warning", title: "Shot creator heavy", detail: `${shotCreatorCount} Heavy Usage Iso players in the lineup. Risk of ball stopping and reduced spacing.` });
   }
   if (ballHandlerCount >= 3) {
     flags.push({ type: "warning", title: "Ball handler heavy", detail: `${ballHandlerCount} ball handlers. May create role overlap and reduce off-ball options.` });
   }
   if (!hasShooter) {
-    flags.push({ type: "error", title: "No floor spacer", detail: "No Movement, Stationary, or Off Screen Shooter. Defense can pack the paint without consequence." });
+    flags.push({ type: "error", title: "No floor spacer", detail: "No Movement Shooter, Stationary Shooter, or Screen Runner. Defense can pack the paint without consequence." });
   }
   if (!hasFinisher) {
-    flags.push({ type: "warning", title: "No rim finisher", detail: "No Roll & Cut Big or Athletic Finisher. Missing rim gravity and lob threat." });
+    flags.push({ type: "warning", title: "No rim finisher", detail: "No Roll Man or Cut & Finish, and no Heavy Usage Iso player getting to the rim at real volume. Missing rim gravity and lob threat." });
+  } else if (!hasFinisherRole && rimPressureIso) {
+    flags.push({ type: "warning", title: "Rim pressure from iso scoring", detail: `No traditional finisher, but ${rimPressureIso.name} gets to the rim on ${Math.round(rimPressureIso.szOff.RA.freq*100)}% of shots. Provides real rim pressure through drives rather than rolling or cutting.` });
   }
   if (!hasPerimDef) {
     flags.push({ type: "error", title: "No perimeter stopper", detail: "No Point of Attack, Wing Stopper, or Chaser defender. Opposing ball handlers and shooters will have freedom." });
