@@ -3148,7 +3148,7 @@ function HexagonChart({ profile, playerName, profile2, playerName2, hideStats })
 
       {/* The shape itself — 7 axes, so technically a heptagon rather than a true hexagon */}
       <div style={{ flex: "1 1 260px", minWidth: 240, maxWidth: hideStats ? 320 : undefined }}>
-        <svg viewBox="0 0 300 300" style={{ width: "100%", maxWidth: 320, display: "block", margin: "0 auto" }}>
+        <svg viewBox="-50 0 400 300" style={{ width: "100%", maxWidth: 320, display: "block", margin: "0 auto" }}>
           {[0.25, 0.5, 0.75, 1].map((frac, i) => (
             <polygon key={i} points={gridRing(frac)} fill="none" stroke="#e5e7eb" strokeWidth="1" />
           ))}
