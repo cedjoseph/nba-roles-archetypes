@@ -460,7 +460,7 @@ function getRoleRankings() {
 // engagement/value that Synergy frequency alone can't see, not a primary signal.
 // Weights are kept low enough that they nudge close calls without overturning decisive ones.
 let _activityCache = null;
-// Six-axis player shape, computed once and cached. Percentiles are leaguewide, not split
+// Seven-axis player shape, computed once and cached. Percentiles are leaguewide, not split
 // by position tier: the point is to surface real outliers (a big with elite playmaking, a
 // guard who genuinely lives at the rim), which a tier-relative scale would flatten out.
 let _hexCache = null;
@@ -760,10 +760,10 @@ function DatabaseTab({ players, allPlayers, filters, setFilters, onSelect, onBul
                     </div>
                   </td>
                   <td style={{ padding: "10px 12px", color: "#6b7280" }}>{p.team}</td>
-                  <td style={{ padding: "10px 12px", color: "#6b7280" }}>{p.position||"—"}</td>
+                  <td style={{ padding: "10px 12px", color: "#6b7280" }}>{p.position||"n/a"}</td>
                   <td style={{ padding: "10px 12px", color: "#6b7280" }}>{p.season}</td>
-                  <td style={{ padding: "10px 12px" }}>{p.offensiveRole ? <RoleChip name={p.offensiveRole} type="off" /> : <span style={{ color: "#d1d5db" }}>—</span>}</td>
-                  <td style={{ padding: "10px 12px" }}>{p.defensiveRole ? <RoleChip name={p.defensiveRole} type="def" /> : <span style={{ color: "#d1d5db" }}>—</span>}</td>
+                  <td style={{ padding: "10px 12px" }}>{p.offensiveRole ? <RoleChip name={p.offensiveRole} type="off" /> : <span style={{ color: "#d1d5db" }}>n/a</span>}</td>
+                  <td style={{ padding: "10px 12px" }}>{p.defensiveRole ? <RoleChip name={p.defensiveRole} type="def" /> : <span style={{ color: "#d1d5db" }}>n/a</span>}</td>
                   <td style={{ padding: "10px 12px" }}>
                     <span style={{ fontSize: 10, fontWeight: 500, padding: "2px 7px", borderRadius: 99, background: p.approved?"#d1fae5":"#fef3c7", color: p.approved?"#065f46":"#92400e" }}>
                       {p.approved?"Approved":"Pending"}
@@ -916,8 +916,8 @@ Respond ONLY with JSON: {"offensiveRole":"name","defensiveRole":"name","rational
                   const e = eff[k];
                   return [
                     <div key={k+"l"} style={{ fontSize: 10, color: "#374151", padding: "2px 0" }}>{ptLabel(k)} <span style={{ color: "#9ca3af" }}>{pct}%</span></div>,
-                    <div key={k+"p"} style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp>=1.1?"#059669":e.pp<=0.85?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"—"}</div>,
-                    <div key={k+"f"} style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg>=0.50?"#059669":e.fg<=0.35?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"—"}</div>
+                    <div key={k+"p"} style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp>=1.1?"#059669":e.pp<=0.85?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"n/a"}</div>,
+                    <div key={k+"f"} style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg>=0.50?"#059669":e.fg<=0.35?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"n/a"}</div>
                   ];
                 })}
               </div>
@@ -1198,7 +1198,7 @@ function LineupTab({ players }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
           <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0 }}>Lineup Builder</h2>
-          <p style={{ fontSize: 12, color: "#6b7280", margin: "4px 0 0" }}>Build a starting 5 and analyze roster construction balance</p>
+          <p style={{ fontSize: 12, color: "#6b7280", margin: "4px 0 0" }}>Build a starting 5 and see its role mix and shot profile</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <select value={season} onChange={e => { setSeason(e.target.value); setSlots([null,null,null,null,null]); setQueries(["","","","",""]); }}
@@ -1271,7 +1271,7 @@ function LineupTab({ players }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           {/* Role balance grid */}
           <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 18 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 14 }}>Role Balance</div>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 14 }}>Role Mix</div>
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Offense</div>
               {Object.entries(analysis.offenseCounts).sort(([,a],[,b])=>b-a).map(([role, count]) => (
@@ -1302,20 +1302,14 @@ function LineupTab({ players }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Construction flags */}
             <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 18 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Construction Analysis</div>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Lineup Notes</div>
               {analysis.flags.length === 0 ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#f0fdf4", borderRadius: 8 }}>
-                  <span style={{ fontSize: 16 }}>✓</span>
-                  <span style={{ fontSize: 12, color: "#166534", fontWeight: 500 }}>Well balanced lineup</span>
-                </div>
+                <div style={{ padding: "10px 12px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 12, color: "#4b5563", lineHeight: 1.4 }}>Every role group checked has at least one player: initiator, spacer, finisher, perimeter defense, paint defense.</div>
               ) : (
                 analysis.flags.map((flag, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "9px 12px", background: flag.type === "warning" ? "#fffbeb" : "#fef2f2", borderRadius: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 14, flexShrink: 0 }}>{flag.type === "warning" ? "⚠" : "✗"}</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: flag.type === "warning" ? "#92400e" : "#991b1b" }}>{flag.title}</div>
-                      <div style={{ fontSize: 11, color: flag.type === "warning" ? "#78350f" : "#7f1d1d", lineHeight: 1.4, marginTop: 2 }}>{flag.detail}</div>
-                    </div>
+                  <div key={i} style={{ padding: "9px 12px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{flag.title}</div>
+                    <div style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.4, marginTop: 2 }}>{flag.detail}</div>
                   </div>
                 ))
               )}
@@ -1340,8 +1334,8 @@ function LineupTab({ players }) {
                         </div>
                         <div style={{ fontSize: 9, color: "#9ca3af", width: 26, textAlign: "right" }}>{Math.round(v*100)}%</div>
                       </div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp>=1.1?"#059669":e.pp<=0.85?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"—"}</div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg>=0.50?"#059669":e.fg<=0.35?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"—"}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp>=1.1?"#059669":e.pp<=0.85?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"n/a"}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg>=0.50?"#059669":e.fg<=0.35?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"n/a"}</div>
                     </div>
                   );
                 })}
@@ -1363,8 +1357,8 @@ function LineupTab({ players }) {
                         </div>
                         <div style={{ fontSize: 9, color: "#9ca3af", width: 26, textAlign: "right" }}>{Math.round(v*100)}%</div>
                       </div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp<=0.85?"#059669":e.pp>=1.1?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"—"}</div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg<=0.35?"#059669":e.fg>=0.50?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"—"}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp<=0.85?"#059669":e.pp>=1.1?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"n/a"}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg<=0.35?"#059669":e.fg>=0.50?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"n/a"}</div>
                     </div>
                   );
                 })}
@@ -1388,6 +1382,13 @@ function LineupTab({ players }) {
       )}
     </div>
   );
+}
+
+// Ordinal suffix for a 0-100 percentile: 91 -> "91st", 93 -> "93rd", 53 -> "53rd".
+function ordinal(p) {
+  const n = Math.round(p);
+  const sfx = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (sfx[(v - 20) % 10] || sfx[v] || sfx[0]);
 }
 
 function analyzeLineup(players) {
@@ -1451,7 +1452,7 @@ function analyzeLineup(players) {
     Object.entries(defEffTotals).map(([k, e]) => [k, { pp: +(e.pp/e.n).toFixed(2), fg: +(e.fg/e.n).toFixed(2) }])
   );
 
-  // Construction flags
+  // Lineup notes
   const flags = [];
   const offRoles = new Set(Object.keys(offenseCounts));
   const defRoles = new Set(Object.keys(defenseCounts));
@@ -1473,34 +1474,36 @@ function analyzeLineup(players) {
   const shotCreatorCount = (offenseCounts["Heavy Usage Iso"] || 0);
   const ballHandlerCount = (offenseCounts["Offensive Engine"] || 0) + (offenseCounts["Secondary Ball Handler"] || 0);
 
+  // Lineup notes: neutral, descriptive facts about which role groups are present or absent.
+  // They describe the lineup as classified and never say whether it is good or bad.
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
   if (!hasInitiator && shotCreatorCount === 0) {
-    flags.push({ type: "error", title: "No offense initiator", detail: "Lineup has no Offensive Engine, Secondary Ball Handler, or Heavy Usage Iso. Who runs the offense?" });
+    flags.push({ title: "No ball-initiating role", detail: "No player here is classified as Offensive Engine, Secondary Ball Handler, or Heavy Usage Iso." });
   }
   if (shotCreatorCount >= 3) {
-    flags.push({ type: "warning", title: "Shot creator heavy", detail: `${shotCreatorCount} Heavy Usage Iso players in the lineup. Risk of ball stopping and reduced spacing.` });
+    flags.push({ title: `${plural(shotCreatorCount, "Heavy Usage Iso player")}`, detail: "Heavy Usage Iso players generate offense almost entirely through self-creation." });
   }
   if (ballHandlerCount >= 3) {
-    flags.push({ type: "warning", title: "Ball handler heavy", detail: `${ballHandlerCount} ball handlers. May create role overlap and reduce off-ball options.` });
+    flags.push({ title: `${plural(ballHandlerCount, "ball handling role")}`, detail: `${ballHandlerCount} players are classified as Offensive Engine or Secondary Ball Handler.` });
   }
   if (!hasShooter) {
-    flags.push({ type: "error", title: "No floor spacer", detail: "No Movement Shooter, Stationary Shooter, or Screen Runner. Defense can pack the paint without consequence." });
+    flags.push({ title: "No spacing role", detail: "No player here is classified as Movement Shooter, Stationary Shooter, or Screen Runner." });
   }
   if (!hasFinisher) {
-    flags.push({ type: "warning", title: "No rim finisher", detail: "No Roll Man or Cut & Finish, and no other player getting to the restricted area at real volume." });
+    flags.push({ title: "No finishing role", detail: "No player here is classified as Roll Man or Cut & Finish, and none takes 35% or more of their shots in the restricted area." });
   } else if (!hasFinisherRole && topRimVolume) {
-    flags.push({ type: "warning", title: "Rim pressure from a non-traditional role", detail: `No Roll Man or Cut & Finish, but ${topRimVolume.name} (${topRimVolume.offensiveRole}) gets to the rim on ${Math.round(topRimVolume.szOff.RA.freq*100)}% of shots.` });
+    const typicalRA = getRoleZoneProfiles()[topRimVolume.offensiveRole]?.zones?.RA?.freq;
+    const typical = typicalRA != null ? ` Typical ${topRimVolume.offensiveRole}: ~${Math.round(typicalRA*100)}%.` : "";
+    flags.push({ title: `${topRimVolume.name}: restricted area volume`, detail: `No player here is classified as Roll Man or Cut & Finish. ${topRimVolume.name} (${topRimVolume.offensiveRole}) takes ${Math.round(topRimVolume.szOff.RA.freq*100)}% of shots in the restricted area.${typical}` });
   }
   if (!hasPerimDef) {
-    flags.push({ type: "error", title: "No perimeter stopper", detail: "No Point of Attack, Wing Stopper, or Chaser defender. Opposing ball handlers and shooters will have freedom." });
+    flags.push({ title: "No perimeter defensive role", detail: "No player here is classified as Point of Attack, Wing Man, or Chaser." });
   }
   if (!hasPaintDef) {
-    flags.push({ type: "warning", title: "No paint protection", detail: "No Anchor Big or Mobile Big. Lineup may be vulnerable at the rim and in pick and roll." });
+    flags.push({ title: "No paint defensive role", detail: "No player here is classified as Anchor Big or Mobile Big." });
   }
-  if (lowActivityCount >= 2) {
-    flags.push({ type: "error", title: `${lowActivityCount} Low Activity defenders`, detail: "Multiple players being hidden defensively in the same lineup creates exploitable mismatches." });
-  }
-  if (lowActivityCount === 1) {
-    flags.push({ type: "warning", title: "1 Low Activity defender", detail: "One player being hidden defensively. Opponents may target this matchup." });
+  if (lowActivityCount >= 1) {
+    flags.push({ title: plural(lowActivityCount, "Low Activity player"), detail: "Low Activity is a deployment label for limited recorded defensive matchup involvement. It can mean a player is being hidden, or that opponents avoid the matchup." });
   }
 
   return { offenseCounts, defenseCounts, aggOffense, aggDefense, aggEffOff, aggEffDef, flags };
@@ -1754,8 +1757,8 @@ function DiscoverTab() {
                         </div>
                       </div>
                       <div style={{ fontSize: 10, color: "#9ca3af", width: 26, textAlign: "right" }}>{pct}%</div>
-                      <div style={{ fontSize: 10, fontWeight: 600, width: 28, textAlign: "right", color: e?(e.pp>=(isOff?1.1:0.01)&&e.pp<=(isOff?999:0.85)?"#059669":e.pp<=(isOff?0.85:999)&&e.pp>=(isOff?0:1.1)?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"—"}</div>
-                      <div style={{ fontSize: 10, fontWeight: 600, width: 28, textAlign: "right", color: e?(e.fg>=(isOff?0.50:0)&&e.fg<=(isOff?999:0.35)?"#059669":e.fg<=(isOff?0.35:999)&&e.fg>=(isOff?0:0.50)?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"—"}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, width: 28, textAlign: "right", color: e?(e.pp>=(isOff?1.1:0.01)&&e.pp<=(isOff?999:0.85)?"#059669":e.pp<=(isOff?0.85:999)&&e.pp>=(isOff?0:1.1)?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"n/a"}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, width: 28, textAlign: "right", color: e?(e.fg>=(isOff?0.50:0)&&e.fg<=(isOff?999:0.35)?"#059669":e.fg<=(isOff?0.35:999)&&e.fg>=(isOff?0:0.50)?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"n/a"}</div>
                     </div>
                   );
                 })}
@@ -2019,7 +2022,7 @@ function CompareTab() {
   return (
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Compare</h2>
-      <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>Pick two players and see how their six-axis shape, roles, and teams stack up head to head.</p>
+      <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>Pick two players and see how their seven-axis shape, roles, and teams stack up head to head.</p>
 
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>Season</label>
@@ -2056,12 +2059,12 @@ function CompareTab() {
                 const vA = profileA[row.key], vB = profileB[row.key];
                 return (
                   <React.Fragment key={row.key}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: vA?.raw != null ? "#1a6ef5" : "#d1d5db", textAlign: "right", padding: "5px 0" }}>{vA?.raw != null ? row.fmt(vA.raw) : "—"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: vA?.raw != null ? "#1a6ef5" : "#d1d5db", textAlign: "right", padding: "5px 0" }}>{vA?.raw != null ? row.fmt(vA.raw) : "n/a"}</div>
                     <div style={{ textAlign: "center", padding: "5px 0" }}>
                       <div style={{ fontSize: 11, color: "#374151" }}>{row.label}</div>
                       <div style={{ fontSize: 9, color: "#9ca3af" }}>{row.unit}</div>
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: vB?.raw != null ? "#f59e0b" : "#d1d5db", textAlign: "left", padding: "5px 0" }}>{vB?.raw != null ? row.fmt(vB.raw) : "—"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: vB?.raw != null ? "#f59e0b" : "#d1d5db", textAlign: "left", padding: "5px 0" }}>{vB?.raw != null ? row.fmt(vB.raw) : "n/a"}</div>
                   </React.Fragment>
                 );
               })}
@@ -2148,7 +2151,7 @@ function RankingsTab() {
                 {zs.map(z => (
                   <span key={z} style={{ fontSize: 10, color: "#6b7280", display: "flex", alignItems: "center", gap: 4 }}>
                     <span style={{ width: 7, height: 7, borderRadius: 1, background: zc[z], display: "inline-block" }} />
-                    {ZONE_LABELS[z]} {Math.round(prof.zones[z].freq*100)}%
+                    {ZONE_LABELS[z]} ~{Math.round(prof.zones[z].freq*100)}%
                   </span>
                 ))}
               </div>
@@ -2178,7 +2181,7 @@ function RankingsTab() {
                 {ranked.map(([label, v], i) => (
                   <span key={label} style={{ fontSize: 10, color: "#6b7280", display: "flex", alignItems: "center", gap: 4 }}>
                     <span style={{ width: 7, height: 7, borderRadius: 1, background: palette[i], display: "inline-block" }} />
-                    {label} {Math.round(v*100)}%
+                    {label} ~{Math.round(v*100)}%
                   </span>
                 ))}
               </div>
@@ -2429,7 +2432,7 @@ function PublicLineupTab() {
           )}
         </div>
       </div>
-      <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>Build a starting 5 and analyze roster construction balance.</p>
+      <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>Build a starting 5 and see its role mix and shot profile.</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 24 }}>
         {slots.map((player, i) => (
@@ -2485,7 +2488,7 @@ function PublicLineupTab() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 18 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 14 }}>Role Balance</div>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 14 }}>Role Mix</div>
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Offense</div>
                 {Object.entries(analysis.offenseCounts).sort(([,a],[,b])=>b-a).map(([role, count]) => (
@@ -2513,21 +2516,17 @@ function PublicLineupTab() {
             </div>
 
             <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", padding: 18 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Construction Analysis</div>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Lineup Notes</div>
               {analysis.flags.length === 0 ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#f0fdf4", borderRadius: 8 }}>
-                  <span style={{ fontSize: 16 }}>✓</span>
-                  <span style={{ fontSize: 12, color: "#166534", fontWeight: 500 }}>Well balanced lineup</span>
-                </div>
-              ) : analysis.flags.map((flag, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "9px 12px", background: flag.type==="warning"?"#fffbeb":"#fef2f2", borderRadius: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 14, flexShrink: 0 }}>{flag.type==="warning"?"⚠":"✗"}</span>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: flag.type==="warning"?"#92400e":"#991b1b" }}>{flag.title}</div>
-                    <div style={{ fontSize: 11, color: flag.type==="warning"?"#78350f":"#7f1d1d", lineHeight: 1.4, marginTop: 2 }}>{flag.detail}</div>
+                <div style={{ padding: "10px 12px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 12, color: "#4b5563", lineHeight: 1.4 }}>Every role group checked has at least one player: initiator, spacer, finisher, perimeter defense, paint defense.</div>
+              ) : (
+                analysis.flags.map((flag, i) => (
+                  <div key={i} style={{ padding: "9px 12px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{flag.title}</div>
+                    <div style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.4, marginTop: 2 }}>{flag.detail}</div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -2559,8 +2558,8 @@ function PublicLineupTab() {
                         </div>
                         <div style={{ fontSize: 9, color: "#9ca3af", width: 26, textAlign: "right" }}>{Math.round(v*100)}%</div>
                       </div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp>=1.1?"#059669":e.pp<=0.85?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"—"}</div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg>=0.50?"#059669":e.fg<=0.35?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"—"}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp>=1.1?"#059669":e.pp<=0.85?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"n/a"}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg>=0.50?"#059669":e.fg<=0.35?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"n/a"}</div>
                     </div>
                   );
                 })}
@@ -2582,8 +2581,8 @@ function PublicLineupTab() {
                         </div>
                         <div style={{ fontSize: 9, color: "#9ca3af", width: 26, textAlign: "right" }}>{Math.round(v*100)}%</div>
                       </div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp<=0.85?"#059669":e.pp>=1.1?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"—"}</div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg<=0.35?"#059669":e.fg>=0.50?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"—"}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp<=0.85?"#059669":e.pp>=1.1?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"n/a"}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg<=0.35?"#059669":e.fg>=0.50?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"n/a"}</div>
                     </div>
                   );
                 })}
@@ -2656,7 +2655,7 @@ function AboutTab() {
                     {zs.map(z => (
                       <span key={z} style={{ fontSize: 9, color: "#6b7280", display: "flex", alignItems: "center", gap: 3 }}>
                         <span style={{ width: 6, height: 6, borderRadius: 1, background: zc[z], display: "inline-block" }} />
-                        {ZONE_LABELS[z]} {Math.round(prof.zones[z].freq*100)}%
+                        {ZONE_LABELS[z]} ~{Math.round(prof.zones[z].freq*100)}%
                       </span>
                     ))}
                   </div>
@@ -2731,8 +2730,8 @@ function PlayerModal({ player, onClose, onApprove, onDelete, onUnapprove }) {
                   return (
                     <div key={k} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "0 6px", alignItems: "center", marginBottom: 3 }}>
                       <span style={{ fontSize: 10, color: "#374151" }}>{ptLabel(k)} <span style={{ color: "#9ca3af", fontSize: 9 }}>{pct}%</span></span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp>=1.1?"#059669":e.pp<=0.85?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"—"}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg>=0.50?"#059669":e.fg<=0.35?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"—"}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: e?(e.pp>=1.1?"#059669":e.pp<=0.85?"#dc2626":"#374151"):"#d1d5db" }}>{e?e.pp.toFixed(2):"n/a"}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: e?(e.fg>=0.50?"#059669":e.fg<=0.35?"#dc2626":"#374151"):"#d1d5db" }}>{e?`${Math.round(e.fg*100)}%`:"n/a"}</span>
                     </div>
                   );
                 })}
@@ -3132,11 +3131,11 @@ function HexagonChart({ profile, playerName, profile2, playerName2, hideStats })
               <div style={{ fontSize: 10, color: "#6b7280", marginBottom: 1 }}>{a.label} <span style={{ color: "#b0b6bf" }}>({a.unit})</span></div>
               <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: v1?.raw != null ? COLOR_1 : "#d1d5db" }}>
-                  {v1?.raw != null ? a.fmt(v1.raw) : "—"}
+                  {v1?.raw != null ? a.fmt(v1.raw) : "n/a"}
                 </span>
                 {compare && (
                   <span style={{ fontSize: 12, fontWeight: 700, color: v2?.raw != null ? COLOR_2 : "#d1d5db" }}>
-                    {v2?.raw != null ? a.fmt(v2.raw) : "—"}
+                    {v2?.raw != null ? a.fmt(v2.raw) : "n/a"}
                   </span>
                 )}
               </div>
@@ -3171,8 +3170,8 @@ function HexagonChart({ profile, playerName, profile2, playerName2, hideStats })
             return (
               <g key={i}>
                 <text x={lx} y={ly} textAnchor={anchor} fontSize="9.5" fontWeight="600" fill="#374151">{a.label}</text>
-                <text x={lx} y={ly + 11} textAnchor={anchor} fontSize="9" fill={val1 != null ? COLOR_1 : "#d1d5db"} fontWeight="700">{val1 != null ? `${val1}th` : "—"}</text>
-                {compare && <text x={lx} y={ly + 22} textAnchor={anchor} fontSize="9" fill={val2 != null ? COLOR_2 : "#d1d5db"} fontWeight="700">{val2 != null ? `${val2}th` : "—"}</text>}
+                <text x={lx} y={ly + 11} textAnchor={anchor} fontSize="9" fill={val1 != null ? COLOR_1 : "#d1d5db"} fontWeight="700">{val1 != null ? ordinal(val1) : "n/a"}</text>
+                {compare && <text x={lx} y={ly + 22} textAnchor={anchor} fontSize="9" fill={val2 != null ? COLOR_2 : "#d1d5db"} fontWeight="700">{val2 != null ? ordinal(val2) : "n/a"}</text>}
               </g>
             );
           })}
@@ -3239,7 +3238,7 @@ function ShotZoneChart({ offZones, defZones, compact }) {
                     <div style={{ width: `${Math.min(freq*250,100)}%`, height: "100%", background: side==="offense"?"#1a6ef5":"#dc2626", opacity: 0.7 }} />
                   </div>
                   <div style={{ fontSize: 9, color: "#9ca3af", width: 24, textAlign: "right" }}>{Math.round(freq*100)}%</div>
-                  <div style={{ fontSize: 9, fontWeight: 600, width: 28, textAlign: "right", color: fgColor(fg, z) }}>{fg>0?`${Math.round(fg*100)}%`:"—"}</div>
+                  <div style={{ fontSize: 9, fontWeight: 600, width: 28, textAlign: "right", color: fgColor(fg, z) }}>{fg>0?`${Math.round(fg*100)}%`:"n/a"}</div>
                 </div>
               );
             })}
@@ -3252,7 +3251,7 @@ function ShotZoneChart({ offZones, defZones, compact }) {
   // Full court diagram - accurate NBA dimensions
   // Scale: 8px/ft, 50ft wide = 400px, basket at (200, 42)
   const BX = 200, BY = 42;
-  const pct = (v) => v != null && !isNaN(v) ? `${Math.round(v*100)}%` : "—";
+  const pct = (v) => v != null && !isNaN(v) ? `${Math.round(v*100)}%` : "n/a";
 
   return (
     <div>
