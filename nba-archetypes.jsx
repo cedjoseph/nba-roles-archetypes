@@ -52,7 +52,7 @@ function decodePlayer(raw) {
     const dr = {};
     if (d.dr) DRIVE_ORDER.forEach((k,i) => { if (d.dr[i] != null) dr[k] = d.dr[i]; });
     const mu = d.mu ? { fg_pct: d.mu[0], poss: d.mu[1] } : null;
-    result[season] = { t:d.t, p:d.p, id:d.id, pt:d.pt, gwc:d.gwc, o, d:de, ro, rd, s,
+    result[season] = { t:d.t, p:d.p, id:d.id, pt:d.pt, gwc:d.gwc, gp:d.gp, o, d:de, ro, rd, s,
       ...(Object.keys(eo).length && {eo}),
       ...(Object.keys(ed).length && {ed}),
       ...(Object.keys(bx).length && {bx}),
@@ -241,7 +241,28 @@ const DEF_PT_MAP = { PRBallHandlerD:"PRBallHandler", IsolationD:"Isolation", Han
 const PT_LABELS = { PRBallHandler:"P&R Ball Handler", PRRollman:"P&R Roll Man", Postup:"Post Up", Spotup:"Spot Up", OffScreen:"Off Screen", OffRebound:"Off Rebound" };
 const ptLabel = k => PT_LABELS[k] || k;
 
-const SEASONS = ["2025-26"];
+// Seasons come from the data itself, newest first, so a new season appears (and becomes the
+// default) as soon as its player data is loaded. No code change needed per season.
+const SEASONS = [...new Set(Object.values(NBA_DATA).flatMap(s => Object.keys(s)))].sort().reverse();
+const DEFAULT_SEASON = SEASONS[0];
+const PLAYER_COUNT = Object.keys(NBA_DATA).length;
+// Early-season samples are thin. Players under this many games get a "provisional" tag
+// (only shown when the data carries a games-played field, d.gp).
+const PROVISIONAL_GP = 20;
+const getGP = d => d?.gp ?? null;
+const isProvisional = d => getGP(d) != null && getGP(d) < PROVISIONAL_GP;
+function ProvisionalTag({ d }) {
+  if (!isProvisional(d)) return null;
+  return <span title={`${getGP(d)} games played. Small sample, roles may shift.`} style={{ marginLeft: 6, fontSize: 9, fontWeight: 600, color: "#92400e", background: "#fef3c7", borderRadius: 4, padding: "1px 5px", textTransform: "uppercase", letterSpacing: "0.04em" }}>Provisional · {getGP(d)} GP</span>;
+}
+// A player's data for a season, or their most recent earlier season if they have none yet
+// (rookies excluded, since they have no earlier season). fromSeason tells the caller which it was.
+function seasonDataWithFallback(name, season) {
+  const all = NBA_DATA[name] || {};
+  if (all[season]) return { d: all[season], fromSeason: season };
+  const earlier = Object.keys(all).filter(x => x < season).sort().reverse()[0];
+  return earlier ? { d: all[earlier], fromSeason: earlier } : null;
+}
 const STORAGE_KEY = "nba_roles_v3";
 
 function loadPlayers() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; } }
@@ -439,22 +460,23 @@ function getRolePlayTypeProfiles() {
 // population used everywhere else in the app (role fingerprints, verified examples), so
 // this can never disagree with what a player's own Discover page shows as their role.
 // Runs once and caches, same pattern as getRoleZoneProfiles.
-let _rankingsCache = null;
-function getRoleRankings() {
-  if (_rankingsCache) return _rankingsCache;
+const _rankingsCache = {};
+function getRoleRankings(season) {
+  if (_rankingsCache[season]) return _rankingsCache[season];
   const off = {}, def = {};
   for (const [name, seasons] of Object.entries(NBA_DATA)) {
-    for (const [season, d] of Object.entries(seasons)) {
+    for (const [sn, d] of Object.entries(seasons)) {
+      if (sn !== season) continue;
       const bx = getBox(d), hu = getHustle(d);
       const offTop = getOffensiveMatches(getOff(d), getPos(d), getRawOff(d), bx, hu, getTouches(d), getDrive(d))[0];
-      if (offTop) (off[offTop.name] ||= []).push({ name, season, score: offTop.score });
+      if (offTop) (off[offTop.name] ||= []).push({ name, season: sn, score: offTop.score });
       const defTop = getDefensiveMatches(getDef(d), getPos(d), getSupp(d), getRawDef(d), bx, hu, getMatchup(d))[0];
-      if (defTop) (def[defTop.name] ||= []).push({ name, season, score: defTop.score });
+      if (defTop) (def[defTop.name] ||= []).push({ name, season: sn, score: defTop.score });
     }
   }
   for (const bucket of [off, def]) for (const role in bucket) bucket[role].sort((a, b) => b.score - a.score);
-  _rankingsCache = { off, def };
-  return _rankingsCache;
+  _rankingsCache[season] = { off, def };
+  return _rankingsCache[season];
 }
 
 // engagement/value that Synergy frequency alone can't see, not a primary signal.
@@ -783,7 +805,7 @@ function DatabaseTab({ players, allPlayers, filters, setFilters, onSelect, onBul
 function AddPlayerTab({ players, setPlayers, setTab }) {
   const [step, setStep] = useState("search");
   const [query, setQuery] = useState("");
-  const [season, setSeason] = useState("2025-26");
+  const [season, setSeason] = useState(DEFAULT_SEASON);
   const [selectedName, setSelectedName] = useState("");
   const [playerData, setPlayerData] = useState(null);
   const [notes, setNotes] = useState("");
@@ -996,7 +1018,7 @@ Respond ONLY with JSON: {"offensiveRole":"name","defensiveRole":"name","rational
 }
 
 function BulkAddTab({ players, setPlayers, setTab }) {
-  const [season, setSeason] = useState("2025-26");
+  const [season, setSeason] = useState(DEFAULT_SEASON);
   const [threshold, setThreshold] = useState(60);
   const [preview, setPreview] = useState(null);
   const [running, setRunning] = useState(false);
@@ -1142,7 +1164,7 @@ function BulkAddTab({ players, setPlayers, setTab }) {
 }
 
 function LineupTab({ players }) {
-  const [season, setSeason] = useState("2025-26");
+  const [season, setSeason] = useState(DEFAULT_SEASON);
   const [slots, setSlots] = useState([null, null, null, null, null]);
   const [queries, setQueries] = useState(["","","","",""]);
   const [activeSlot, setActiveSlot] = useState(null);
@@ -1635,7 +1657,7 @@ function PublicView({ onBack, isAdminPath }) {
 
 function DiscoverTab() {
   const [query, setQuery] = useState("");
-  const [season, setSeason] = useState("2025-26");
+  const [season, setSeason] = useState(DEFAULT_SEASON);
   const [selectedName, setSelectedName] = useState(null);
   const [playerData, setPlayerData] = useState(null);
   const [offMatches, setOffMatches] = useState(null);
@@ -1691,7 +1713,7 @@ function DiscoverTab() {
         <div style={{ flex: 1, position: "relative" }}>
           <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>Player</label>
           <input value={query} onChange={e => { setQuery(e.target.value); setSelectedName(null); setOffMatches(null); setRevealed(false); }}
-            placeholder="Search 469 players..." autoFocus
+            placeholder="Search players..." autoFocus
             style={{ width: "100%", padding: "10px 14px", borderRadius: 9, border: "1px solid #e5e7eb", fontSize: 14, boxSizing: "border-box" }} />
           {suggestions.length > 0 && !selectedName && (
             <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 9, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 20, marginTop: 4 }}>
@@ -1729,7 +1751,16 @@ function DiscoverTab() {
             <PlayerAvatar playerId={playerData.playerId} name={selectedName} size={52} />
             <div>
               <div style={{ fontWeight: 700, fontSize: 18 }}>{selectedName}</div>
-              <div style={{ fontSize: 13, color: "#6b7280" }}>{teamLabelParts(playerData.team, playerData.previousTeam, playerData.gamesWithCurrent)} · {playerData.position} · {season}</div>
+              <div style={{ fontSize: 13, color: "#6b7280" }}>{teamLabelParts(playerData.team, playerData.previousTeam, playerData.gamesWithCurrent)} · {playerData.position} · {season}<ProvisionalTag d={NBA_DATA[selectedName][season]} /></div>
+              {(() => {
+                const prevSeason = SEASONS.filter(x => x < season).find(x => NBA_DATA[selectedName][x]);
+                if (!prevSeason) return null;
+                const pd = NBA_DATA[selectedName][prevSeason];
+                const po = getOffensiveMatches(getOff(pd), getPos(pd), getRawOff(pd), getBox(pd), getHustle(pd), getTouches(pd), getDrive(pd))[0];
+                const pdf = getDefensiveMatches(getDef(pd), getPos(pd), getSupp(pd), getRawDef(pd), getBox(pd), getHustle(pd), getMatchup(pd))[0];
+                if (!po && !pdf) return null;
+                return <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 3 }}>{prevSeason}: {[po?.name, pdf?.name].filter(Boolean).join(" · ")}</div>;
+              })()}
             </div>
           </div>
 
@@ -1963,7 +1994,7 @@ function PlayerSlotSearch({ label, query, setQuery, season, onSelect, excludeNam
 }
 
 function CompareTab() {
-  const [season, setSeason] = useState("2025-26");
+  const [season, setSeason] = useState(DEFAULT_SEASON);
   const [queryA, setQueryA] = useState("");
   const [queryB, setQueryB] = useState("");
   const [nameA, setNameA] = useState(null);
@@ -2084,6 +2115,7 @@ function CompareTab() {
 
 
 function RankingsTab() {
+  const [season, setSeason] = useState(DEFAULT_SEASON);
   const [side, setSide] = useState("off");
   const roleTable = side === "off" ? OFFENSIVE_ROLES : DEFENSIVE_ROLES;
   const roleNames = Object.keys(roleTable);
@@ -2093,14 +2125,21 @@ function RankingsTab() {
   const activeRole = roleTable[role] ? role : (side === "off" ? Object.keys(OFFENSIVE_ROLES)[0] : Object.keys(DEFENSIVE_ROLES)[0]);
   const switchSide = (s) => { setSide(s); setRole(s === "off" ? Object.keys(OFFENSIVE_ROLES)[0] : Object.keys(DEFENSIVE_ROLES)[0]); };
 
-  const rankings = getRoleRankings();
+  const rankings = getRoleRankings(season);
   const pool = rankings[side][activeRole] || [];
   const shown = pool.slice(0, 5);
   const roleInfo = roleTable[activeRole];
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Rankings</h2>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Rankings</h2>
+        {SEASONS.length > 1 && (
+          <select value={season} onChange={e => setSeason(e.target.value)} style={{ padding: "6px 10px", borderRadius: 7, border: "1px solid #e5e7eb", fontSize: 12 }}>
+            {SEASONS.map(x => <option key={x}>{x}</option>)}
+          </select>
+        )}
+      </div>
       <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>Closest fit to each role's target profile, <strong style={{ textTransform: "uppercase" }}>not</strong> a claim about who's objectively best. The label describes the measurement, not a verdict.</p>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
@@ -2367,7 +2406,7 @@ function QuizTab() {
 }
 
 function PublicLineupTab() {
-  const [season, setSeason] = useState("2025-26");
+  const [season, setSeason] = useState(DEFAULT_SEASON);
   const [slots, setSlots] = useState([null, null, null, null, null]);
   const [queries, setQueries] = useState(["","","","",""]);
   const [activeSlot, setActiveSlot] = useState(null);
@@ -2375,16 +2414,17 @@ function PublicLineupTab() {
   const positions = ["PG", "SG", "SF", "PF", "C"];
 
   // Build player list from NBA_DATA directly
-  const availablePlayers = Object.entries(NBA_DATA)
-    .filter(([, seasons]) => seasons[season])
-    .map(([name, seasons]) => {
-      const d = seasons[season];
+  const availablePlayers = Object.keys(NBA_DATA)
+    .map(name => ({ name, hit: seasonDataWithFallback(name, season) }))
+    .filter(x => x.hit)
+    .map(({ name, hit }) => {
+      const d = hit.d, fromSeason = hit.fromSeason;
       const off = getOff(d), def = getDef(d), supp = getSupp(d);
       const pos = getPos(d);
       const offTop = getOffensiveMatches(off, pos, getRawOff(d), getBox(d), getHustle(d), getTouches(d), getDrive(d));
       const defTop = getDefensiveMatches(def, pos, supp, getRawDef(d), getBox(d), getHustle(d), getMatchup(d));
       return {
-        id: `${name}__${season}`, name,
+        id: `${name}__${season}`, name, fromSeason, provisional: isProvisional(d), gp: getGP(d),
         team: getTeam(d), previousTeam: getPreviousTeam(d), gamesWithCurrent: getGamesWithCurrent(d), position: pos, playerId: getId(d), season,
         offense: off, defense: def,
         rawOffense: getRawOff(d), rawDefense: getRawDef(d),
@@ -2446,6 +2486,8 @@ function PublicLineupTab() {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{player.name}</div>
                     <div style={{ fontSize: 10, color: "#9ca3af" }}>{teamLabelParts(player.team, player.previousTeam, player.gamesWithCurrent)}</div>
+                    {player.fromSeason && player.fromSeason !== season && <div style={{ fontSize: 9, fontWeight: 600, color: "#6b7280" }}>Roles from {player.fromSeason}</div>}
+                    {player.provisional && <div style={{ fontSize: 9, fontWeight: 600, color: "#92400e" }}>Provisional · {player.gp} GP</div>}
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
@@ -2596,7 +2638,7 @@ function PublicLineupTab() {
         <div style={{ textAlign: "center", padding: "40px 0", color: "#9ca3af" }}>
           <div style={{ fontSize: 36, marginBottom: 10 }}>🏀</div>
           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Build your lineup</div>
-          <div style={{ fontSize: 12 }}>Search from all 469 players across both seasons</div>
+          <div style={{ fontSize: 12 }}>{`Search from all ${PLAYER_COUNT} players${SEASONS.length > 1 ? " (players without games yet this season use their most recent role)" : ""}`}</div>
         </div>
       )}
       {filledPlayers.length > 0 && (
